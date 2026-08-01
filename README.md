@@ -26,6 +26,9 @@ vvp sim.out +WIDTH=16 +HEIGHT=16 +THRESHOLD=70
 # Testing a small 4x4 image
 vvp sim.out +WIDTH=4 +HEIGHT=4 +THRESHOLD=50
 
+# along with mode also
+vvp sim.out +MODE=2 +THRESHOLD=10
+
 python3 -c "from PIL import Image; Image.open('edge_output.pgm').save('edge_output.png')"
 
 explorer.exe .
