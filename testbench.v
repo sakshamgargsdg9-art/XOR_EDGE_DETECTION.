@@ -4,18 +4,20 @@ module testbench;
 
     reg clk;
     reg reset;
+    reg [1:0] mode_sel;
     reg [7:0] threshold;
     reg [15:0] img_width;
     reg [15:0] img_height;
 
-    integer parsed_thresh, parsed_w, parsed_h;
+    integer parsed_mode, parsed_thresh;
 
     // Instantiate DUT
     top_module #(
-        .PIXEL_BITS(8)
+        .PIXEL_BITS(24) 
     ) DUT (
         .clk(clk),
         .reset(reset),
+        .mode_sel(mode_sel),
         .threshold(threshold),
         .img_width(img_width),
         .img_height(img_height)
@@ -29,23 +31,33 @@ module testbench;
     initial begin
         reset = 1;
         
-        // Defaults
-        threshold  = 8'd30;
-        img_width  = 16'd16;
-        img_height = 16'd16;
+        mode_sel  = 2'b00; // Defaulting to Binary mode (00)
+        threshold = 8'd30;
+        
+        // Let image_memory's initial block auto-calculate the file shape
+        #1; 
+        
+        // Pull the dimensions automatically found by the character scanner
+        img_height = DUT.img_mem.file_rows;
+        img_width  = DUT.img_mem.file_cols;
 
-        // Command line overrides
+        // Fail-safe
+        if (img_width === 16'bx || img_height === 16'bx || img_width == 0 || img_height == 0) begin
+            $display("FATAL ERROR: Invalid Dimensions. Check your input file.");
+            $finish;
+        end
+
+        if ($value$plusargs("MODE=%d",      parsed_mode))   mode_sel = parsed_mode[1:0];
         if ($value$plusargs("THRESHOLD=%d", parsed_thresh)) threshold = parsed_thresh[7:0];
-        if ($value$plusargs("WIDTH=%d",     parsed_w))      img_width = parsed_w[15:0];
-        if ($value$plusargs("HEIGHT=%d",    parsed_h))      img_height = parsed_h[15:0];
 
         #20 reset = 0;
 
-        // Dynamic completion check
+        // Will dynamically halt based on auto-calculated grid
         wait(DUT.addr == (img_width * img_height - 1));
         #20;
 
-        DUT.out_mem.export_pgm_image(threshold, img_width, img_height);
+        // Pass mode_sel along with threshold, width, and height to match the new task signature
+        DUT.out_mem.export_pgm_image(mode_sel, threshold, img_width, img_height);
         
         $finish;
     end
