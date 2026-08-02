@@ -40,8 +40,9 @@ module output_memory #(
         end
     end
 
-    // Task accepts dynamic width and height
+    // Task accepts mode selection to print on terminal report
     task export_pgm_image(
+        input [1:0] mode_val,
         input [PIXEL_BITS-1:0] threshold_val,
         input [15:0] img_w,
         input [15:0] img_h
@@ -53,7 +54,8 @@ module output_memory #(
             if (file_handle) begin
                 $fwrite(file_handle, "P2\n");
                 $fwrite(file_handle, "%0d %0d\n", img_w, img_h);
-                $fwrite(file_handle, "%0d\n", (1 << PIXEL_BITS) - 1);
+                // Fixed maxval to 255 for standard PGM/PPM compatibility with PIL
+                $fwrite(file_handle, "255\n");
 
                 for (i = 0; i < total_pixels; i = i + 1) begin
                     $fwrite(file_handle, "%0d ", mem[i]);
@@ -66,10 +68,18 @@ module output_memory #(
             $display("========================================");
             $display("         EDGE DETECTION REPORT          ");
             $display("========================================");
-            $display(" Image Grid Size   : %0d x %0d", img_w, img_h);
+            $display(" Image Grid Size    : %0d x %0d", img_w, img_h);
+            
+            // Print processing mode instead of edge ratio
+            case (mode_val)
+                2'b00:   $display(" Processing Mode    : Binary XOR (0)");
+                2'b01:   $display(" Processing Mode    : Grayscale (1)");
+                2'b10:   $display(" Processing Mode    : RGB Per-channel (2)");
+                default: $display(" Processing Mode    : Unknown (%0d)", mode_val);
+            endcase
+
             $display(" Selected Threshold : %0d", threshold_val);
             $display(" Total Edge Pixels  : %0d / %0d", edge_count, total_pixels);
-            $display(" Edge Ratio         : %0f %%", (edge_count * 100.0) / total_pixels);
             $display(" Saved Output Image : %s", FILE_NAME);
             $display("========================================");
         end
